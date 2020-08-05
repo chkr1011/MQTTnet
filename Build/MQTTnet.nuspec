@@ -20,7 +20,8 @@
 * [Server] Exposed real X509Certificate2 (instead byte array) to TLS options (thanks to @borigas).
 * [Server] Fixed memory leak with TCP sockets (MqttServer is now Disposable!) (BREAKING CHANGE!).
 * [Core] Fixed a null reference exception in the MqttTcpChannel with WriteAsync and ReadAsync.
-* [Core] Added server interceptor for undelivered messages (thanks to @cshark-inator).
+* [Core] Added server interceptor for undelivered messages (Thanks to @cshark-inator).
+* [Server] Added support for returning individual subscription errors (#80 thanks to @jimch)
 * [nuget] Added support for SourceLink (thanks to @JTOne123).
     </releaseNotes>
     <copyright>Copyright Christian Kratky 2016-2020</copyright>

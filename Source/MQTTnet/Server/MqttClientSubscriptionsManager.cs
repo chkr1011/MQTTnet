@@ -47,12 +47,12 @@ namespace MQTTnet.Server
                 if (finalTopicFilter == null || string.IsNullOrEmpty(finalTopicFilter.Topic) || !interceptorContext.AcceptSubscription)
                 {
                     result.ResponsePacket.ReturnCodes.Add(MqttSubscribeReturnCode.Failure);
-                    result.ResponsePacket.ReasonCodes.Add(MqttSubscribeReasonCode.UnspecifiedError);
+                    result.ResponsePacket.ReasonCodes.Add(interceptorContext.ResultCode);
                 }
                 else
                 {
                     result.ResponsePacket.ReturnCodes.Add(ConvertToSubscribeReturnCode(finalTopicFilter.QualityOfServiceLevel));
-                    result.ResponsePacket.ReasonCodes.Add(ConvertToSubscribeReasonCode(finalTopicFilter.QualityOfServiceLevel));
+                    result.ResponsePacket.ReasonCodes.Add(interceptorContext.ResultCode);
                 }
 
                 if (interceptorContext.CloseConnection)
