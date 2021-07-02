@@ -15,6 +15,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using MQTTnet.Client.Publishing;
 using MQTTnet.Client.Receiving;
 using MQTTnet.Diagnostics;
 using MQTTnet.Extensions.ManagedClient;
@@ -833,6 +834,84 @@ namespace MQTTnet.Tests
                 Assert.IsTrue(messageReceived);
                 Assert.IsTrue(client1.IsConnected);
                 Assert.IsFalse(disconnectedFired);
+            }
+        }
+
+        [DataTestMethod]
+        [DataRow(MqttQualityOfServiceLevel.ExactlyOnce)]
+        [DataRow(MqttQualityOfServiceLevel.AtMostOnce)]
+        [DataRow(MqttQualityOfServiceLevel.AtLeastOnce)]
+        public async Task ConcurrentProcessing(MqttQualityOfServiceLevel qos)
+        {
+            long concurrency = 0;
+            bool success = false;
+
+            using (var testEnvironment = new TestEnvironment(TestContext))
+            {
+                await testEnvironment.StartServerAsync();
+                var publisher = await testEnvironment.ConnectClientAsync();
+                var subscriber = await testEnvironment.ConnectClientAsync(new MqttClientOptionsBuilder().WithClientId(qos.ToString()));
+                await subscriber.SubscribeAsync("#", qos);
+
+                subscriber.UseApplicationMessageReceivedHandler(c =>
+                {
+                    c.AutoAcknowledge = false;
+
+                    async Task InvokeInternal()
+                    {
+                        if (Interlocked.Increment(ref concurrency) > 1) success = true;
+                        await Task.Delay(100);
+                        Interlocked.Decrement(ref concurrency);
+                    }
+
+                    _ = InvokeInternal();
+                    return Task.CompletedTask;
+                });
+
+                var publishes = Task.WhenAll(
+                    publisher.PublishAsync("a", null, qos),
+                    publisher.PublishAsync("b", null, qos)
+                );
+
+                await Task.Delay(200);
+
+                await publishes;
+                Assert.IsTrue(success);
+            }
+        }
+
+        [DataTestMethod]
+        [DataRow(MqttQualityOfServiceLevel.ExactlyOnce)]
+        [DataRow(MqttQualityOfServiceLevel.AtLeastOnce)]
+        public async Task RetryIfNotPubAck(MqttQualityOfServiceLevel qos)
+        {
+            long count = 0;
+            using (var testEnvironment = new TestEnvironment(TestContext))
+            {
+                await testEnvironment.StartServerAsync();
+                var publisher = await testEnvironment.ConnectClientAsync();
+                var subscriber = await testEnvironment.ConnectClientAsync(new MqttClientOptionsBuilder().WithClientId(qos.ToString()));
+                await subscriber.SubscribeAsync("#", qos);
+
+                subscriber.UseApplicationMessageReceivedHandler(c =>
+                {
+                    c.AutoAcknowledge = false;
+                    ++count;
+                    Console.WriteLine("process");
+                    return Task.CompletedTask;
+                });
+
+                var pub = publisher.PublishAsync("a", null, qos);
+
+                await Task.Delay(100);
+                await subscriber.DisconnectAsync();
+                await subscriber.ReconnectAsync();
+                await Task.Delay(100);
+
+                var res = await pub;
+
+                Assert.AreEqual(MqttClientPublishReasonCode.Success, res.ReasonCode);
+                Assert.AreEqual(2, count);
             }
         }
     }
