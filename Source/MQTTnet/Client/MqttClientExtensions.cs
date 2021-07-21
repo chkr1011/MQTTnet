@@ -1,4 +1,4 @@
-﻿using MQTTnet.Client.Connecting;
+using MQTTnet.Client.Connecting;
 using MQTTnet.Client.Disconnecting;
 using MQTTnet.Client.ExtendedAuthenticationExchange;
 using MQTTnet.Client.Options;
@@ -112,7 +112,7 @@ namespace MQTTnet.Client
             return client;
         }
 
-        public static Task ReconnectAsync(this IMqttClient client)
+        public static Task<MqttClientAuthenticateResult> ReconnectAsync(this IMqttClient client)
         {
             if (client == null) throw new ArgumentNullException(nameof(client));
 
@@ -122,6 +122,18 @@ namespace MQTTnet.Client
             }
 
             return client.ConnectAsync(client.Options);
+        }
+
+        public static Task<MqttClientAuthenticateResult> ReconnectAsync(this IMqttClient client, CancellationToken cancellationToken)
+        {
+            if (client == null) throw new ArgumentNullException(nameof(client));
+
+            if (client.Options == null)
+            {
+                throw new InvalidOperationException("_ReconnectAsync_ can be used only if _ConnectAsync_ was called before.");
+            }
+
+            return client.ConnectAsync(client.Options, cancellationToken);
         }
 
         public static Task DisconnectAsync(this IMqttClient client)
